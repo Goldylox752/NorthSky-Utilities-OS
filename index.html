@@ -1,276 +1,213 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>NorthSky AI | Website Grader</title>
-
-<style>
-*{margin:0;padding:0;box-sizing:border-box;}
-
-body{
-  font-family:Arial;
-  background:#020617;
-  color:white;
-  text-align:center;
-  padding:30px;
-}
-
-h1{font-size:2.4rem;margin-bottom:10px;}
-p{opacity:0.9;}
-
-.card{
-  background:#1e293b;
-  padding:25px;
-  border-radius:12px;
-  margin-top:25px;
-  max-width:520px;
-  margin-left:auto;
-  margin-right:auto;
-}
-
-.btn{
-  padding:14px;
-  width:100%;
-  background:#38bdf8;
-  border:none;
-  border-radius:8px;
-  font-weight:bold;
-  cursor:pointer;
-  margin-top:12px;
-}
-
-.btn:hover{transform:scale(1.02);opacity:0.9;}
-
-textarea,input{
-  width:100%;
-  padding:12px;
-  border-radius:8px;
-  border:none;
-  margin-top:12px;
-}
-
-textarea{height:90px;}
-
-#output{
-  margin-top:15px;
-  padding:15px;
-  background:#0f172a;
-  border-radius:8px;
-  text-align:left;
-}
-
-.trust{color:#22c55e;margin-top:10px;}
-.highlight{color:#facc15;font-weight:bold;}
-</style>
-</head>
-
-<body>
-
-<!-- 🔥 HERO -->
-<h1>Increase Your Website Conversions by 30% in 60 Seconds</h1>
-<p>Find out why visitors don’t buy — and fix it instantly.</p>
-
-<p class="trust">⭐⭐⭐⭐⭐ Trusted by 1,200+ business owners</p>
-
-<p style="margin-top:10px;font-size:0.9rem;">
-“Found 3 issues in seconds — boosted my leads by 40%”<br>
-— Sarah, Shopify store owner
-</p>
-
-<p style="margin-top:10px;font-size:0.9rem;">
-“Best $9 I’ve spent this year”<br>
-— Mike, local contractor
-</p>
-
-<p id="usageStatus" style="margin-top:10px;"></p>
-
-<!-- 👤 ACCOUNT -->
-<div class="card">
-  <h3>👤 Your Account</h3>
-  <input id="email" placeholder="Enter your email">
-  <button onclick="saveUser()" class="btn">Save Account</button>
-  <p id="userStatus"></p>
-</div>
-
-<!-- 🧠 FEATURES -->
-<div class="card">
-  ✔ Mobile speed detected<br>
-  ✔ SEO tags analyzed<br>
-  ✔ UX flow scanned
-</div>
-
-<!-- 🔍 TOOL -->
-<div class="card">
-  <h3>Analyze Your Website</h3>
-  <textarea id="site" placeholder="Paste your website URL..."></textarea>
-  <button onclick="analyzeSite()" class="btn">Analyze Website</button>
-  <div id="output"></div>
-</div>
-
-<!-- 💰 PRICING -->
-<div class="card">
-  <h3>🚀 Pro Plan ($29/month)</h3>
-
-  ✔ Unlimited website scans<br>
-  ✔ Full AI reports<br>
-  ✔ Conversion improvement tips<br>
-  ✔ Saved dashboards<br>
-  ✔ Future updates<br><br>
-
-  <div class="highlight">
-    🔥 Most users increase conversions by 30–50%
-  </div><br>
-
-  <div class="highlight">
-    ⚡ Launch Offer: $9 (limited time)
-  </div>
-
-  <button onclick="goToCheckout()" class="btn">
-    Unlock Full Report ($9)
-  </button>
-
-  <button onclick="goToCheckout('monthly')" class="btn">
-    Go Pro ($29/month)
-  </button>
-</div>
-
 <script>
-// 🔐 STATE
-let paid = false;
-let uses = parseInt(localStorage.getItem("uses") || "0");
+// =============================
+// 🔐 GLOBAL STATE
+// =============================
+let state = {
+  paid: false,
+  uses: parseInt(localStorage.getItem("uses") || "0"),
+  email: localStorage.getItem("userEmail") || null
+};
 
-// 🔥 ACCESS CHECK
+// =============================
+// 🔄 INIT
+// =============================
+init();
+
+async function init() {
+  updateStatus();
+  if (state.email) await checkAccess();
+}
+
+// =============================
+// 🔐 CHECK ACCESS (BACKEND)
+// =============================
 async function checkAccess() {
-  const email = localStorage.getItem("userEmail");
-  if (!email) return updateStatus();
-
   try {
     const res = await fetch("/api/check-user", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({email})
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ email: state.email })
     });
 
     const data = await res.json();
-    paid = data.paid || false;
+    state.paid = data?.paid || false;
 
-  } catch {
-    paid = false;
+  } catch (err) {
+    console.error("Access check failed:", err);
+    state.paid = false;
   }
 
   updateStatus();
 }
 
-// STATUS
+// =============================
+// 📊 STATUS UI
+// =============================
 function updateStatus() {
   const el = document.getElementById("usageStatus");
-  el.innerHTML = paid
-    ? "✅ Pro User — Unlimited Access"
-    : `⚠️ Free Plan — ${Math.max(0,3-uses)} analyses left`;
+
+  if (state.paid) {
+    el.innerHTML = "✅ Pro User — Unlimited Access";
+  } else {
+    const remaining = Math.max(0, 3 - state.uses);
+    el.innerHTML = `⚠️ Free Plan — ${remaining} analyses left`;
+  }
 }
 
-// SAVE USER
+// =============================
+// 👤 SAVE USER
+// =============================
 function saveUser() {
-  const email = document.getElementById("email").value;
-  if (!email) return;
+  const email = document.getElementById("email").value.trim();
 
+  if (!email || !email.includes("@")) {
+    alert("Enter a valid email");
+    return;
+  }
+
+  state.email = email;
   localStorage.setItem("userEmail", email);
+
   document.getElementById("userStatus").innerText = "✅ Saved";
 
   checkAccess();
 }
 
-// STRIPE
-function goToCheckout(type="one-time") {
-  const email = localStorage.getItem("userEmail");
-  if (!email) return alert("Enter email first");
-
-  const links = {
-    "one-time":"https://buy.stripe.com/cNi6oA1eraKU7ZR1QQ2ZO0u",
-    "monthly":"https://buy.stripe.com/00w8wIg9lf1a0xpbrq2ZO0v"
-  };
-
-  window.location.href =
-    `${links[type]}?prefilled_email=${encodeURIComponent(email)}`;
-}
-
-// SCORE ENGINE
-function calculateScore(input){
-  let score=50;
-
-  if(input.includes("shop")) score+=10;
-  if(input.includes("ai")) score+=5;
-  if(input.length>20) score+=10;
-  if(input.includes("https")) score+=5;
-
-  score+=Math.floor(Math.random()*10);
-  return Math.min(score,95);
-}
-
-// MAIN
-async function analyzeSite(){
-  const inputRaw=document.getElementById("site").value;
-  const input=inputRaw.toLowerCase();
-  const output=document.getElementById("output");
-
-  if(!input) return output.innerText="Enter your website URL";
-
-  if(!paid && uses>=3){
-    output.innerHTML=`
-      🚫 Free limit reached<br><br>
-      <div class="highlight">Small fixes = BIG revenue gains</div><br>
-      <button class="btn" onclick="goToCheckout()">Upgrade Now</button>
-    `;
+// =============================
+// 💳 STRIPE CHECKOUT
+// =============================
+function goToCheckout(type = "one-time") {
+  if (!state.email) {
+    alert("Enter your email first");
     return;
   }
 
-  uses++;
-  localStorage.setItem("uses",uses);
-  updateStatus();
+  const links = {
+    "one-time": "https://buy.stripe.com/cNi6oA1eraKU7ZR1QQ2ZO0u",
+    "monthly": "https://buy.stripe.com/00w8wIg9lf1a0xpbrq2ZO0v"
+  };
 
-  output.innerHTML="Analyzing...";
+  const url = `${links[type]}?prefilled_email=${encodeURIComponent(state.email)}`;
+  window.location.href = url;
+}
 
-  await new Promise(r=>setTimeout(r,1200));
+// =============================
+// 🧠 SCORE ENGINE (IMPROVED)
+// =============================
+function calculateScore(input) {
+  let score = 55;
 
-  const score=calculateScore(input);
+  if (input.includes("shop") || input.includes("store")) score += 10;
+  if (input.includes("ai")) score += 5;
+  if (input.includes("https")) score += 5;
+  if (input.length > 20) score += 5;
 
-  if(!paid){
-    output.innerHTML=`
-      <strong>Score: ${score}/100</strong><br><br>
+  // simulate realism
+  score += Math.floor(Math.random() * 8);
 
-      ❌ Weak conversion flow<br>
-      ❌ Missing trust signals<br>
-      ❌ Poor CTA placement<br><br>
+  return Math.min(score, 92);
+}
+
+// =============================
+// 🎬 UX DELAY
+// =============================
+function delay(ms) {
+  return new Promise(res => setTimeout(res, ms));
+}
+
+// =============================
+// 🚀 MAIN ANALYSIS
+// =============================
+async function analyzeSite() {
+  const inputRaw = document.getElementById("site").value.trim();
+  const input = inputRaw.toLowerCase();
+  const output = document.getElementById("output");
+
+  if (!input) {
+    output.innerText = "Enter your website URL";
+    return;
+  }
+
+  // 🚫 LIMIT
+  if (!state.paid && state.uses >= 3) {
+    output.innerHTML = `
+      🚫 Free limit reached (3 analyses)<br><br>
 
       <div class="highlight">
-      🔒 See how to increase conversions by 30%+
+        Most users increase conversions by 30–50%
       </div><br>
 
-      <strong>${score} → ${score+25}+ 🚀</strong><br><br>
-
       <button class="btn" onclick="goToCheckout()">
-        Unlock Full Report
+        Unlock Full Access
       </button>
     `;
     return;
   }
 
-  output.innerHTML=`
-    <strong>Score: ${score}/100</strong><br><br>
+  // increment usage
+  state.uses++;
+  localStorage.setItem("uses", state.uses);
+  updateStatus();
 
-    ✔ Add testimonials<br>
-    ✔ Improve CTA<br>
-    ✔ Add headline<br><br>
-
-    🚀 Potential: ${score+25}+
+  // =============================
+  // 🎬 LOADING EXPERIENCE
+  // =============================
+  output.innerHTML = `
+    🤖 Analyzing your website...<br><br>
+    🔍 Checking SEO...
   `;
+
+  await delay(600);
+  output.innerHTML += "<br>📊 Evaluating conversions...";
+  await delay(600);
+  output.innerHTML += "<br>⚡ Generating report...<br><br>";
+
+  const score = calculateScore(input);
+
+  // =============================
+  // 🔒 FREE VERSION (CONVERSION OPTIMIZED)
+  // =============================
+  if (!state.paid) {
+    output.innerHTML += `
+      <strong>📊 Website Score: ${score}/100</strong><br><br>
+
+      ❌ Weak call-to-action<br>
+      ❌ Missing trust signals<br>
+      ❌ Poor headline clarity<br><br>
+
+      <div class="highlight">
+        🔒 See exactly how to increase conversions by 30%+
+      </div><br>
+
+      <strong>${score} → ${score + 25}+ 🚀</strong><br><br>
+
+      <button class="btn" onclick="goToCheckout()">
+        Unlock Full Report ($9)
+      </button>
+    `;
+    return;
+  }
+
+  // =============================
+  // 💰 REAL GPT BACKEND
+  // =============================
+  try {
+    const res = await fetch("/api/analyze", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ site: inputRaw })
+    });
+
+    const data = await res.json();
+
+    output.innerHTML = `
+      <strong>📊 Real AI Analysis</strong><br><br>
+      ${data.result.replace(/\n/g, "<br>")}
+    `;
+
+  } catch (err) {
+    console.error(err);
+    output.innerHTML = "⚠️ Failed to load AI analysis";
+  }
 }
-
-// INIT
-checkAccess();
 </script>
-
-</body>
-</html>
