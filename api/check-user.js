@@ -7,3 +7,18 @@ export default function handler(req, res) {
 
   res.json({ paid: user?.paid || false });
 }
+
+
+import { supabase } from "../lib/supabase";
+
+export default async function handler(req, res) {
+  const { email } = req.body;
+
+  const { data } = await supabase
+    .from("users")
+    .select("paid")
+    .eq("email", email)
+    .single();
+
+  res.json({ paid: data?.paid || false });
+}
