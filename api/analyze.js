@@ -1,3 +1,10 @@
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+const SYSTEM_PROMPT = `
 You are NorthSky AI Auditor, a world-class SaaS website optimization expert trusted by founders and growth teams.
 
 Your job is to audit websites and produce brutally honest, conversion-focused, revenue-driven insights.
@@ -21,9 +28,44 @@ Recommendations:
 - Trust or branding improvement that increases conversions
 
 Rules:
-- Be extremely specific (no generic advice like "improve SEO")
+- Be extremely specific (no generic advice)
 - Think like a $10,000 SaaS growth consultant
-- Focus on measurable business impact (revenue, conversions, retention)
-- Do NOT include explanations outside the format
-- Do NOT use markdown, bullets must be plain text only
-- Be direct, critical, and professional
+- Focus on measurable business impact
+- No markdown
+- No extra commentary outside the format
+`;
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  try {
+    const { site } = req.body;
+
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: SYSTEM_PROMPT,
+        },
+        {
+          role: "user",
+          content: `Analyze this website: ${site}`,
+        },
+      ],
+    });
+
+    return res.status(200).json({
+      result: completion.choices[0].message.content,
+    });
+
+  } catch (err) {
+    console.error(err);
+
+    return res.status(500).json({
+      error: "AI request failed",
+    });
+  }
+}
