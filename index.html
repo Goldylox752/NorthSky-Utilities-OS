@@ -1,237 +1,192 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>NorthSky AI</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NorthSky AI Auditor</title>
 
-  <style>
-    body {
-      font-family: Arial;
-      background: #0b1220;
-      color: white;
-      padding: 20px;
-    }
+<style>
+body {
+  font-family: system-ui, Arial;
+  background: #0b1220;
+  color: white;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  padding: 40px;
+}
 
-    input, button {
-      padding: 10px;
-      margin: 5px 0;
-      border-radius: 6px;
-      border: none;
-    }
+.container {
+  width: 100%;
+  max-width: 750px;
+}
 
-    button {
-      cursor: pointer;
-      background: #38bdf8;
-      color: black;
-      font-weight: bold;
-    }
+.card {
+  background: #111827;
+  padding: 20px;
+  border-radius: 14px;
+  margin-top: 15px;
+}
 
-    #output {
-      margin-top: 15px;
-      padding: 15px;
-      background: #111827;
-      border-radius: 10px;
-      min-height: 100px;
-    }
-  </style>
+h1 {
+  font-size: 28px;
+}
+
+input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  margin-top: 10px;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  background: #38bdf8;
+  color: black;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+pre {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+</style>
 </head>
 
 <body>
 
-  <h1>🌌 NorthSky AI Auditor</h1>
+<div class="container">
 
-  <input id="site" placeholder="Enter website (example.com)">
-  <button onclick="NorthSky.analyze()">Analyze</button>
+<h1>🌌 NorthSky AI Auditor</h1>
 
-  <div id="output"></div>
+<div class="card">
+  <small>Enter website</small>
+  <input id="site" placeholder="example.com" />
+  <button id="btn" onclick="analyzeSite()">Analyze Website</button>
+</div>
 
-  <hr>
+<div id="output" class="card">
+  Waiting for analysis...
+</div>
 
-  <input id="email" placeholder="Email">
-  <button onclick="NorthSky.saveUser()">Save</button>
-
-  <div id="userStatus"></div>
-  <div id="usageStatus"></div>
+</div>
 
 <script>
-// =============================
-// 🌌 NORTHSKY CORE ENGINE (CLEAN PRO)
-// =============================
 
-const NorthSky = {
-  state: {
-    paid: false,
-    uses: parseInt(localStorage.getItem("ns_uses") || "0"),
-    email: localStorage.getItem("ns_email") || null
-  },
-
-  config: {
-    freeLimit: 3,
-    checkout: {
-      "one-time": "https://buy.stripe.com/cNi6oA1eraKU7ZR1QQ2ZO0u",
-      "monthly": "https://buy.stripe.com/00w8wIg9lf1a0xpbrq2ZO0v"
-    }
-  }
+const state = {
+  loading: false,
+  uses: parseInt(localStorage.getItem("ns_uses") || "0"),
+  freeLimit: 3
 };
 
-// =============================
-NorthSky.init = async function () {
-  this.updateStatus();
-  if (this.state.email) await this.checkAccess();
-};
-
-// =============================
-NorthSky.checkAccess = async function () {
-  try {
-    const res = await fetch("/api/check-user", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: this.state.email })
-    });
-
-    const data = await res.json();
-    this.state.paid = !!data?.paid;
-
-  } catch (err) {
-    console.error(err);
-    this.state.paid = false;
-  }
-
-  this.updateStatus();
-};
-
-// =============================
-NorthSky.updateStatus = function () {
-  const el = document.getElementById("usageStatus");
-  if (!el) return;
-
-  el.innerHTML = this.state.paid
-    ? "✅ Pro — Unlimited Access"
-    : `⚠️ Free Plan — ${Math.max(0, this.config.freeLimit - this.state.uses)} uses left`;
-};
-
-// =============================
-NorthSky.saveUser = function () {
-  const email = document.getElementById("email").value.trim();
-
-  if (!email.includes("@")) {
-    alert("Enter valid email");
-    return;
-  }
-
-  this.state.email = email;
-  localStorage.setItem("ns_email", email);
-
-  document.getElementById("userStatus").innerText = "✅ Saved";
-
-  this.checkAccess();
-};
-
-// =============================
-NorthSky.checkout = function () {
-  if (!this.state.email) return alert("Enter email first");
-
-  window.location.href =
-    this.config.checkout["one-time"] +
-    `?prefilled_email=${encodeURIComponent(this.state.email)}`;
-};
-
-// =============================
-NorthSky.delay = (ms) => new Promise(r => setTimeout(r, ms));
-
-// =============================
-NorthSky.callAI = async function (site) {
-  const res = await fetch("/api/analyze", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      site,
-      prompt: `
-You are a senior website auditor.
-
-Analyze: ${site}
-
-Return:
-
-SEO Score: X/100
-UX Score: X/100
-Conversion Score: X/100
-
-Issues:
-- 3-5 issues
-
-Recommendations:
-- 3-5 fixes
-`
-    })
-  });
-
-  return await res.json();
-};
-
-// =============================
-NorthSky.analyze = async function () {
+// =========================
+// MAIN FUNCTION
+// =========================
+async function analyzeSite() {
   const siteInput = document.getElementById("site");
   const output = document.getElementById("output");
+  const btn = document.getElementById("btn");
 
   let site = siteInput.value.trim();
 
-  if (!site) return (output.innerText = "Enter website");
-  if (!site.includes(".")) return (output.innerText = "Invalid website");
+  if (!site) return output.innerText = "⚠️ Enter a website";
+  if (!site.includes(".")) return output.innerText = "⚠️ Invalid website";
 
   if (!site.startsWith("http")) site = "https://" + site;
 
-  if (!this.state.paid && this.state.uses >= this.config.freeLimit) {
+  if (state.uses >= state.freeLimit) {
     output.innerHTML = `
-      🚫 Free limit reached<br><br>
-      <button onclick="NorthSky.checkout()">Upgrade 🚀</button>
+      🚫 Free limit reached
+      <br><br>
+      <button onclick="alert('Upgrade system here')">Upgrade</button>
     `;
     return;
   }
 
-  this.state.uses++;
-  localStorage.setItem("ns_uses", this.state.uses);
-  this.updateStatus();
+  state.uses++;
+  localStorage.setItem("ns_uses", state.uses);
 
-  output.innerHTML = "🤖 Analyzing website...";
-
-  await this.delay(600);
+  setLoading(true);
+  output.innerText = "🤖 Analyzing website...";
 
   try {
-    const data = await this.callAI(site);
+    const res = await fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ site })
+    });
 
-    const result =
-      data.result ||
-      data.output?.[0]?.content?.[0]?.text;
+    if (!res.ok) throw new Error("API failed");
 
-    if (!result) {
-      output.innerHTML = "⚠️ No AI response";
+    const data = await res.json();
+    const text = data?.result;
+
+    if (!text) {
+      output.innerText = "⚠️ No AI response";
       return;
     }
 
-    const seo = result.match(/SEO Score:\s*(\d+)/)?.[1];
-    const ux = result.match(/UX Score:\s*(\d+)/)?.[1];
-    const conv = result.match(/Conversion Score:\s*(\d+)/)?.[1];
+    const parsed = parseAI(text);
 
     output.innerHTML = `
-      <h3>📊 AI Report</h3>
+      <h2>📊 Audit Report</h2>
 
-      <p>SEO: ${seo || "N/A"}/100</p>
-      <p>UX: ${ux || "N/A"}/100</p>
-      <p>Conversion: ${conv || "N/A"}/100</p>
+      <p><b>SEO:</b> ${parsed.seo}</p>
+      <p><b>UX:</b> ${parsed.ux}</p>
+      <p><b>Conversion:</b> ${parsed.conv}</p>
 
-      <pre>${result}</pre>
+      <hr>
+
+      <pre>${text}</pre>
     `;
 
   } catch (err) {
     console.error(err);
-    output.innerHTML = "⚠️ AI failed";
+    output.innerText = "⚠️ Failed to analyze site";
   }
-};
 
-// =============================
-NorthSky.init();
+  setLoading(false);
+}
+
+// =========================
+// SAFE PARSER (ROBUST)
+// =========================
+function parseAI(text) {
+  return {
+    seo: match(text, "SEO Score"),
+    ux: match(text, "UX Score"),
+    conv: match(text, "Conversion Score")
+  };
+}
+
+function match(text, key) {
+  const regex = new RegExp(key + ":\\s*(\\d+\\/\\d+)", "i");
+  const m = text.match(regex);
+  return m ? m[1] : "N/A";
+}
+
+// =========================
+// LOADING STATE
+// =========================
+function setLoading(isLoading) {
+  const btn = document.getElementById("btn");
+  state.loading = isLoading;
+
+  btn.disabled = isLoading;
+  btn.innerText = isLoading ? "Analyzing..." : "Analyze Website";
+}
+
 </script>
 
 </body>
