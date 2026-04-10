@@ -52,12 +52,15 @@ p{
   opacity:0.9;
 }
 
-textarea{
+textarea, input{
   width:100%;
   padding:12px;
   border-radius:8px;
   border:none;
   margin-top:12px;
+}
+
+textarea{
   height:90px;
 }
 
@@ -67,36 +70,41 @@ textarea{
   background:#0f172a;
   border-radius:8px;
   text-align:left;
-  line-height:1.5;
 }
 
 .trust{
   color:#22c55e;
   margin-top:10px;
-  font-size:0.95rem;
 }
 
-.divider{
-  margin:25px auto;
-  width:60%;
-  height:1px;
-  background:#1e293b;
+.report{
+  background:#0f172a;
+  padding:10px;
+  border-radius:8px;
+  margin-top:10px;
+  text-align:left;
 }
 </style>
 </head>
 
 <body>
 
-<!-- 🔥 HERO -->
 <h1>This AI Shows Why Your Website Is Losing Customers</h1>
 
-<p>
-Get a score, find your biggest problems, and fix them in minutes.
-</p>
+<p>Get a score, find your biggest problems, and fix them in minutes.</p>
 
-<p class="trust">
-Used by 1,200+ businesses to improve their websites ⚡
-</p>
+<p class="trust">Used by 1,200+ businesses ⚡</p>
+
+<!-- 👤 ACCOUNT -->
+<div class="card">
+  <h3>👤 Your Account</h3>
+
+  <input id="email" placeholder="Enter your email">
+
+  <button onclick="saveUser()" class="btn">Save Account</button>
+
+  <p id="userStatus"></p>
+</div>
 
 <!-- TOOL -->
 <div class="card">
@@ -104,18 +112,12 @@ Used by 1,200+ businesses to improve their websites ⚡
 
   <textarea id="site" placeholder="Paste your website URL..."></textarea>
 
-  <button onclick="analyzeSite()" class="btn">
-    Analyze Website
-  </button>
+  <button onclick="analyzeSite()" class="btn">Analyze Website</button>
 
   <div id="output"></div>
 
-  <button onclick="analyzeSite()" class="btn">
-    Re-analyze After Fixes
-  </button>
+  <button onclick="analyzeSite()" class="btn">Re-analyze After Fixes</button>
 </div>
-
-<div class="divider"></div>
 
 <!-- 💰 UPSELL -->
 <div class="card">
@@ -127,9 +129,55 @@ Used by 1,200+ businesses to improve their websites ⚡
   </a>
 </div>
 
+<!-- 📊 REPORTS -->
+<div class="card">
+  <h3>📊 Your Saved Reports</h3>
+  <div id="reports"></div>
+
+  <button onclick="loadReports()" class="btn">Refresh Reports</button>
+</div>
+
 <script>
 let paid = localStorage.getItem("paid") === "true";
 
+// 👤 SAVE USER
+function saveUser() {
+  const email = document.getElementById("email").value;
+
+  if (!email) return;
+
+  localStorage.setItem("userEmail", email);
+
+  document.getElementById("userStatus").innerText = "✅ Account saved";
+}
+
+// 📊 LOAD REPORTS
+function loadReports() {
+  const reports = JSON.parse(localStorage.getItem("reports") || "[]");
+  const container = document.getElementById("reports");
+
+  container.innerHTML = "";
+
+  if (reports.length === 0) {
+    container.innerHTML = "No reports yet";
+    return;
+  }
+
+  reports.slice().reverse().forEach(r => {
+    const div = document.createElement("div");
+    div.className = "report";
+
+    div.innerHTML = `
+      <strong>${r.site}</strong><br>
+      <small>${r.date}</small><br><br>
+      ${r.result.substring(0, 150)}...
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+// 🧠 AI ANALYSIS
 async function analyzeSite() {
   const input = document.getElementById("site").value;
   const output = document.getElementById("output");
@@ -157,9 +205,9 @@ async function analyzeSite() {
       return;
     }
 
-    // 🔒 PREVIEW (first few lines only)
     let preview = data.result.split("\n").slice(0, 5).join("<br>");
 
+    // 🔒 PAYWALL
     if (!paid) {
       output.innerHTML = `
         ${preview}<br><br>
@@ -172,19 +220,33 @@ async function analyzeSite() {
       return;
     }
 
-    // 💰 FULL RESULT
-    output.innerHTML = `
-      ${data.result.replace(/\n/g, "<br>")}<br><br>
+    // 💰 SAVE REPORT (only paid users)
+    const email = localStorage.getItem("userEmail");
 
-      <button onclick="analyzeSite()" class="btn">
-        Re-analyze After Fixes
-      </button>
-    `;
+    if (email) {
+      const reports = JSON.parse(localStorage.getItem("reports") || "[]");
+
+      reports.push({
+        site: input,
+        result: data.result,
+        date: new Date().toLocaleString()
+      });
+
+      localStorage.setItem("reports", JSON.stringify(reports));
+    }
+
+    // 💰 FULL OUTPUT
+    output.innerHTML = data.result.replace(/\n/g, "<br>");
+
+    loadReports();
 
   } catch (err) {
     output.innerText = "Connection failed";
   }
 }
+
+// 🚀 INIT
+loadReports();
 </script>
 
 </body>
