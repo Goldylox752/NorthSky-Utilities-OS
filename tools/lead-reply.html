@@ -1,1 +1,76 @@
-tools
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>AI Lead Reply Generator</title>
+
+<style>
+body{
+  font-family:Arial;
+  background:#020617;
+  color:white;
+  text-align:center;
+  padding:30px;
+}
+.card{
+  background:#1e293b;
+  padding:20px;
+  border-radius:12px;
+  max-width:500px;
+  margin:auto;
+}
+textarea{
+  width:100%;
+  height:120px;
+  margin-top:10px;
+}
+.btn{
+  margin-top:10px;
+  padding:12px;
+  width:100%;
+  background:#38bdf8;
+  border:none;
+  border-radius:8px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>💬 AI Lead Reply Generator</h1>
+
+<div class="card">
+
+<textarea id="lead" placeholder="Paste a lead message..."></textarea>
+
+<button onclick="generateReply()" class="btn">
+Generate Reply
+</button>
+
+<p id="output"></p>
+
+</div>
+
+<script>
+function generateReply() {
+  const input = document.getElementById('lead').value;
+  const output = document.getElementById('output');
+
+  if (!input) {
+    output.innerText = "Enter a message";
+    return;
+  }
+
+  output.innerText = "Generating...";
+
+  setTimeout(() => {
+    output.innerText =
+      "Hey! Thanks for reaching out — we'd love to help. When are you available for a quick call?";
+  }, 1000);
+}
+</script>
+
+</body>
+</html>
