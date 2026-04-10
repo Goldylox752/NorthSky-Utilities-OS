@@ -1,38 +1,24 @@
 import OpenAI from "openai";
+import { getUserByEmail, incrementUsage } from "../lib/db";
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
 const SYSTEM_PROMPT = `
-You are NorthSky AI Auditor, a world-class SaaS website optimization expert trusted by founders and growth teams.
+You are NorthSky AI Auditor, a world-class SaaS website optimization expert.
 
-Your job is to audit websites and produce brutally honest, conversion-focused, revenue-driven insights.
-
-You MUST return ONLY in this exact format:
+Return ONLY:
 
 SEO Score: X/100
 UX Score: X/100
 Conversion Score: X/100
 
 Issues:
-- Critical issue affecting SEO or visibility
-- UX friction or usability problem reducing engagement
-- Conversion blocker preventing signups or sales
-- Trust or credibility issue hurting conversions
+- 4 specific issues
 
 Recommendations:
-- High-impact fix that improves revenue or conversions
-- UX improvement that increases engagement or retention
-- SEO improvement that increases organic traffic
-- Trust or branding improvement that increases conversions
-
-Rules:
-- Be extremely specific (no generic advice)
-- Think like a $10,000 SaaS growth consultant
-- Focus on measurable business impact
-- No markdown
-- No extra commentary outside the format
+- 4 high-impact fixes
 `;
 
 export default async function handler(req, res) {
@@ -41,31 +27,38 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { site } = req.body;
+    const { site, email } = req.body;
 
+    // 1. Get user
+    const user = await getUserByEmail(email);
+
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
+
+    // 2. Check usage limit
+    if (!user.isPro && user.uses >= 3) {
+      return res.status(403).json({ error: "Upgrade required" });
+    }
+
+    // 3. Call AI
     const completion = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        {
-          role: "system",
-          content: SYSTEM_PROMPT,
-        },
-        {
-          role: "user",
-          content: `Analyze this website: ${site}`,
-        },
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: `Analyze: ${site}` },
       ],
     });
 
-    return res.status(200).json({
-      result: completion.choices[0].message.content,
-    });
+    const result = completion.choices[0].message.content;
+
+    // 4. Save usage
+    await incrementUsage(email);
+
+    return res.status(200).json({ result });
 
   } catch (err) {
     console.error(err);
-
-    return res.status(500).json({
-      error: "AI request failed",
-    });
+    return res.status(500).json({ error: "Server error" });
   }
 }
