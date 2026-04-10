@@ -81,6 +81,9 @@ Capture, respond, and convert every lead automatically with simple AI tools.
 
 <p style="color:#22c55e;">Used by 1,200+ small businesses ⚡</p>
 
+<!-- 🔐 STATUS -->
+<p id="status" style="color:#22c55e;"></p>
+
 <!-- 🚀 MAIN OFFER -->
 <div class="card">
   <h2>🚀 AI Lead System</h2>
@@ -92,7 +95,7 @@ Capture, respond, and convert every lead automatically with simple AI tools.
   <p>✔ Replies instantly with AI</p>
   <p>✔ Converts while you sleep</p>
 
-  <a href="https://buy.stripe.com/cNi6oA1eraKU7ZR1QQ2ZO0u?success_url=https://north-sky-ai.vercel.app/success">
+  <a href="https://buy.stripe.com/cNi6oA1eraKU7ZR1QQ2ZO0u?success_url=https://north-sky-ai.vercel.app/success.html">
     <button class="btn">🔥 Get Instant Access</button>
   </a>
 
@@ -127,7 +130,7 @@ Capture, respond, and convert every lead automatically with simple AI tools.
   <h3>🔓 Want Unlimited Replies?</h3>
   <p>$9 one-time</p>
 
-  <a href="https://buy.stripe.com/bJe7sE9KXdX63JBeDC2ZO0t?success_url=https://north-sky-ai.vercel.app/success">
+  <a href="https://buy.stripe.com/bJe7sE9KXdX63JBeDC2ZO0t?success_url=https://north-sky-ai.vercel.app/success.html">
     <button class="btn">Unlock Tool</button>
   </a>
 </div>
@@ -135,8 +138,17 @@ Capture, respond, and convert every lead automatically with simple AI tools.
 <script>
 document.addEventListener("DOMContentLoaded", () => {
 
-  let uses = localStorage.getItem('uses') || 0;
-  let paid = localStorage.getItem('paid');
+  let uses = parseInt(localStorage.getItem('uses')) || 0;
+  let paid = localStorage.getItem('paid') === "true";
+
+  const status = document.getElementById("status");
+
+  // 🔐 STATUS DISPLAY
+  if (paid) {
+    status.innerText = "✅ Unlimited access unlocked";
+  } else {
+    status.innerText = "⚠️ Free plan (3 uses)";
+  }
 
   function loadHistory() {
     const history = JSON.parse(localStorage.getItem('history')) || [];
