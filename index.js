@@ -4,25 +4,29 @@ const axios = require("axios");
 const cheerio = require("cheerio");
 const crypto = require("crypto");
 const cors = require("cors");
+const Stripe = require("stripe");
+const { v4: uuidv4 } = require("uuid");
 require("dotenv").config();
 
 const app = express();
+const PORT = process.env.PORT || 3000;
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+/* ================= MIDDLEWARE ================= */
 app.use(express.json());
 app.use(cors());
 
-const PORT = process.env.PORT || 3000;
-
-/* ================= LOGGING ================= */
 app.use((req, res, next) => {
   console.log(`➡️ ${req.method} ${req.url}`);
   next();
 });
 
-/* ================= CACHE ================= */
+/* ================= MEMORY DB ================= */
+const users = new Map();
 const cache = new Map();
 const CACHE_TTL = 1000 * 60 * 30;
 
-/* ================= HELPERS ================= */
+/* ================= CACHE ================= */
 function getCache(key) {
   const item = cache.get(key);
   if (!item) return null;
@@ -37,6 +41,7 @@ function setCache(key, data) {
   cache.set(key, { data, time: Date.now() });
 }
 
+/* ================= HELPERS ================= */
 function normalizeURL(input) {
   try {
     if (!input) return null;
@@ -68,8 +73,7 @@ async function fetchHTML(url) {
       },
     });
     return res.data;
-  } catch (err) {
-    console.log("FETCH ERROR:", err.message);
+  } catch {
     return null;
   }
 }
@@ -78,26 +82,25 @@ async function fetchHTML(url) {
 function parseHTML(html, url) {
   const $ = cheerio.load(html);
 
-  const title =
-    $("meta[property='og:title']").attr("content") ||
-    $("title").text().trim() ||
-    "Untitled";
+  return {
+    title:
+      $("meta[property='og:title']").attr("content") ||
+      $("title").text().trim() ||
+      "Untitled",
 
-  const description =
-    $("meta[name='description']").attr("content") ||
-    $("meta[property='og:description']").attr("content") ||
-    $("p").first().text().trim().slice(0, 200) ||
-    "";
+    description:
+      $("meta[name='description']").attr("content") ||
+      $("meta[property='og:description']").attr("content") ||
+      $("p").first().text().trim().slice(0, 200) ||
+      "",
 
-  const image =
-    $("meta[property='og:image']").attr("content") || null;
+    image: $("meta[property='og:image']").attr("content") || null,
 
-  const site = new URL(url).hostname.replace("www.", "");
-
-  return { title, description, image, site };
+    site: new URL(url).hostname.replace("www.", ""),
+  };
 }
 
-/* ================= AI SCORING ENGINE ================= */
+/* ================= AI SCORING ================= */
 function analyzeHTML(html, url) {
   const $ = cheerio.load(html);
 
@@ -112,17 +115,14 @@ function analyzeHTML(html, url) {
   let ux = 50;
   let conv = 50;
 
-  // SEO
   if (title.length > 10) seo += 10;
   if (desc.length > 20) seo += 15;
   if (h1 > 0) seo += 10;
   if (links > 5) seo += 10;
 
-  // UX
   if (imgs > 0) ux += 10;
   if (h1 > 0) ux += 10;
 
-  // Conversion
   if (desc.length > 50) conv += 10;
   if (links > 3) conv += 10;
   if (ssl) conv += 10;
@@ -134,17 +134,39 @@ function analyzeHTML(html, url) {
   };
 }
 
-/* ================= CORE SCRAPE ================= */
-async function scrape(url) {
-  const html = await fetchHTML(url);
-  if (!html) return { success: false, error: "fetch_failed" };
+/* ================= LIMIT MIDDLEWARE ================= */
+function checkLimit(req, res, next) {
+  const apiKey = req.headers["x-api-key"];
 
-  const metadata = parseHTML(html, url);
+  if (!apiKey || !users.has(apiKey)) {
+    return res.status(401).json({ error: "invalid_api_key" });
+  }
 
-  return { success: true, metadata, html };
+  const user = users.get(apiKey);
+
+  if (user.usage >= user.limit) {
+    return res.status(429).json({ error: "limit_reached", plan: user.plan });
+  }
+
+  user.usage++;
+  users.set(apiKey, user);
+
+  req.user = user;
+  next();
 }
 
-/* ================= SEARCH ENGINE (PHASE 1 MOCK) ================= */
+/* ================= ENGINE ================= */
+async function scrape(url) {
+  const html = await fetchHTML(url);
+  if (!html) return { success: false };
+
+  return {
+    success: true,
+    metadata: parseHTML(html, url),
+  };
+}
+
+/* ================= SEARCH ================= */
 async function searchEngine(query) {
   return {
     success: true,
@@ -152,86 +174,152 @@ async function searchEngine(query) {
     results: [
       {
         title: `Search: ${query}`,
-        url: `https://example.com/search?q=${encodeURIComponent(query)}`,
-        snippet: "AI-powered placeholder result (upgrade to SerpAPI later)"
+        url: `https://example.com?q=${encodeURIComponent(query)}`
       }
     ]
   };
 }
 
-/* ================= ASK NORTHSKY (AI ROUTER) ================= */
+/* ================= ASK ROUTER ================= */
 async function askEngine(input) {
   if (isURL(input)) {
-    const url = normalizeURL(input);
-    return scrape(url);
+    return scrape(normalizeURL(input));
   }
 
-  const results = await searchEngine(input);
-
-  return {
-    success: true,
-    type: "search",
-    answer: `NorthSky found results for "${input}"`,
-    ...results
-  };
+  return searchEngine(input);
 }
 
-/* ================= API: SCRAPE ================= */
-app.get("/api/rip", async (req, res) => {
+/* ================= STRIPE USER CREATE ================= */
+app.post("/api/create-user", (req, res) => {
+  const apiKey = uuidv4();
+
+  users.set(apiKey, {
+    apiKey,
+    plan: "free",
+    usage: 0,
+    limit: 5
+  });
+
+  res.json({ success: true, apiKey });
+});
+
+/* ================= STRIPE SUBSCRIBE ================= */
+app.post("/api/subscribe", async (req, res) => {
+  const { apiKey } = req.body;
+
+  if (!users.has(apiKey)) {
+    return res.status(400).json({ error: "invalid_user" });
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    mode: "subscription",
+    payment_method_types: ["card"],
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: "NorthSky Auditor Pro"
+          },
+          unit_amount: 2900,
+          recurring: { interval: "month" }
+        },
+        quantity: 1
+      }
+    ],
+    success_url: `${process.env.BASE_URL}/success?apiKey=${apiKey}`,
+    cancel_url: `${process.env.BASE_URL}/cancel`
+  });
+
+  res.json({ url: session.url });
+});
+
+/* ================= WEBHOOK ================= */
+app.post("/api/webhook", express.raw({ type: "application/json" }), (req, res) => {
+  const sig = req.headers["stripe-signature"];
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch {
+    return res.status(400).send("Webhook Error");
+  }
+
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+
+    const apiKey = new URL(session.success_url).searchParams.get("apiKey");
+
+    if (users.has(apiKey)) {
+      const user = users.get(apiKey);
+
+      user.plan = "pro";
+      user.limit = 1000;
+      user.usage = 0;
+
+      users.set(apiKey, user);
+    }
+  }
+
+  res.json({ received: true });
+});
+
+/* ================= API ROUTES ================= */
+app.get("/api/rip", checkLimit, async (req, res) => {
   const url = normalizeURL(req.query.url);
-  if (!url) return res.status(400).json({ success: false });
-
-  const key = crypto.createHash("md5").update(url).digest("hex");
-
-  const cached = getCache(key);
-  if (cached) return res.json({ success: true, cached: true, ...cached });
+  if (!url) return res.status(400).json({ error: "invalid_url" });
 
   const result = await scrape(url);
-
-  setCache(key, result);
   res.json(result);
 });
 
-/* ================= API: ANALYZE (YOUR AUDITOR UI) ================= */
-app.post("/api/analyze", async (req, res) => {
-  try {
-    const url = normalizeURL(req.body.site);
-    if (!url) return res.status(400).json({ success: false });
+app.post("/api/analyze", checkLimit, async (req, res) => {
+  const url = normalizeURL(req.body.site);
+  const html = await fetchHTML(url);
 
-    const html = await fetchHTML(url);
-    if (!html) return res.status(500).json({ success: false });
+  if (!html) return res.status(500).json({ error: "fetch_failed" });
 
-    const meta = parseHTML(html, url);
-    const scores = analyzeHTML(html, url);
+  const meta = parseHTML(html, url);
+  const scores = analyzeHTML(html, url);
 
-    return res.json({
-      success: true,
-      meta,
-      scores,
-      result: `
+  res.json({
+    success: true,
+    meta,
+    scores,
+    result: `
 SEO Score: ${scores.seo}/100
 UX Score: ${scores.ux}/100
 Conversion Score: ${scores.conv}/100
-
-Insights:
-- ${scores.seo < 70 ? "Improve SEO structure" : "Good SEO foundation"}
-- ${scores.ux < 70 ? "Improve UX design" : "Good UX"}
-- ${scores.conv < 70 ? "Improve conversion elements" : "Good conversion setup"}
-      `.trim()
-    });
-
-  } catch {
-    res.status(500).json({ success: false });
-  }
+    `.trim()
+  });
 });
 
-/* ================= ASK API (NORTHSKY OS CORE) ================= */
-app.get("/api/ask", async (req, res) => {
+app.get("/api/ask", checkLimit, async (req, res) => {
   const q = req.query.q;
-  if (!q) return res.status(400).json({ success: false });
-
   const result = await askEngine(q);
   res.json(result);
+});
+
+/* ================= USER STATUS ================= */
+app.get("/api/me", (req, res) => {
+  const apiKey = req.headers["x-api-key"];
+
+  if (!apiKey || !users.has(apiKey)) {
+    return res.status(401).json({ error: "invalid_user" });
+  }
+
+  const user = users.get(apiKey);
+
+  res.json({
+    plan: user.plan,
+    usage: user.usage,
+    limit: user.limit,
+    remaining: user.limit - user.usage
+  });
 });
 
 /* ================= HEALTH ================= */
@@ -239,11 +327,11 @@ app.get("/health", (req, res) => {
   res.json({
     status: "ok",
     uptime: process.uptime(),
-    cacheSize: cache.size
+    users: users.size
   });
 });
 
 /* ================= START ================= */
 app.listen(PORT, () => {
-  console.log(`🚀 NorthSky OS v3 running on port ${PORT}`);
+  console.log(`🚀 NorthSky OS v3 LIVE on ${PORT}`);
 });
