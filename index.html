@@ -3,184 +3,206 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>NorthSky AI Auditor</title>
+<title>NorthSky OS — AI Auditor</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
 <style>
-* {
-  box-sizing: border-box;
+:root{
+  --bg:#05060a;
+  --card:rgba(255,255,255,0.04);
+  --border:rgba(148,163,184,0.15);
+  --accent:#38bdf8;
+  --text:#ffffff;
+  --muted:rgba(255,255,255,0.6);
+  --green:#22c55e;
 }
 
-body {
-  margin: 0;
-  font-family: 'Inter', sans-serif;
-  background: radial-gradient(circle at top, #1e293b, #020617);
-  color: white;
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body{
+  font-family:'Inter',sans-serif;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(56,189,248,0.10), transparent 40%),
+    radial-gradient(circle at 80% 20%, rgba(34,197,94,0.08), transparent 40%),
+    var(--bg);
+  color:var(--text);
 }
 
 /* NAV */
-.nav {
+.nav{
   display:flex;
   justify-content:space-between;
-  padding:20px 40px;
-  font-weight:600;
+  padding:18px 40px;
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(10px);
 }
 
-.logo {
-  font-size:18px;
+.logo{
+  font-weight:700;
 }
 
-.badge {
+.badge{
+  font-size:12px;
   opacity:0.6;
 }
 
 /* LAYOUT */
-.container {
+.container{
   max-width:900px;
   margin:0 auto;
-  padding:40px 20px;
+  padding:50px 20px;
 }
 
 /* HERO */
-.hero {
-  text-align:center;
-  margin-top:40px;
+.hero{
+  text-align:left;
+  margin-bottom:25px;
 }
 
-.hero h1 {
-  font-size:40px;
-  margin-bottom:10px;
+.hero h1{
+  font-size:38px;
+  letter-spacing:-0.5px;
 }
 
-.hero p {
-  opacity:0.6;
+.hero p{
+  color:var(--muted);
+  margin-top:6px;
 }
 
 /* CARD */
-.card {
-  margin-top:20px;
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:18px;
   padding:18px;
-  background:rgba(255,255,255,0.04);
-  border:1px solid rgba(148,163,184,0.15);
-  border-radius:16px;
-  backdrop-filter:blur(12px);
+  backdrop-filter:blur(16px);
+  margin-top:14px;
 }
 
-/* INPUTS */
-input {
+/* INPUT */
+input{
   width:100%;
-  padding:14px;
+  padding:12px;
   border-radius:12px;
-  border:1px solid rgba(148,163,184,0.2);
-  background:#0f172a;
+  border:1px solid var(--border);
+  background:rgba(0,0,0,0.25);
   color:white;
   margin-top:10px;
   outline:none;
 }
 
-input:focus {
-  border-color:#38bdf8;
+input:focus{
+  border-color:var(--accent);
 }
 
 /* BUTTON */
-button {
+button{
   width:100%;
-  padding:14px;
+  padding:12px;
   margin-top:12px;
-  border-radius:12px;
+  border-radius:999px;
   border:none;
-  background:#3b82f6;
-  color:white;
-  font-weight:600;
+  background:var(--accent);
+  color:#000;
+  font-weight:700;
   cursor:pointer;
   transition:0.2s;
 }
 
-button:hover {
-  background:#2563eb;
+button:hover{
+  transform:translateY(-2px);
 }
 
-/* GRID */
-.grid {
+/* METRICS */
+.grid{
   display:grid;
   grid-template-columns:repeat(3,1fr);
   gap:12px;
-  margin-top:20px;
+  margin-top:16px;
 }
 
-/* METRIC */
-.metric {
-  padding:16px;
+.metric{
+  padding:14px;
   border-radius:14px;
+  border:1px solid var(--border);
   background:rgba(255,255,255,0.03);
-  border:1px solid rgba(148,163,184,0.15);
 }
 
-.metric h3 {
+.metric h3{
   font-size:12px;
-  opacity:0.6;
+  color:var(--muted);
 }
 
-.metric .value {
+.metric .value{
   font-size:22px;
   font-weight:700;
   margin-top:6px;
-  color:#22c55e;
+  color:var(--green);
 }
 
 /* OUTPUT */
-.output {
+.output{
   white-space:pre-wrap;
   line-height:1.6;
-  opacity:0.8;
+  color:var(--muted);
 }
 
-/* LOADING */
-.loading {
-  color:#38bdf8;
+.loading{
+  color:var(--accent);
+}
+
+/* STATUS */
+.status{
+  font-size:12px;
+  color:var(--muted);
+  margin-top:8px;
 }
 </style>
 </head>
 
 <body>
 
-<!-- NAV -->
 <div class="nav">
-  <div class="logo">NorthSky AI</div>
-  <div class="badge">Auditor</div>
+  <div class="logo">NorthSky OS</div>
+  <div class="badge">AI Auditor v3</div>
 </div>
 
 <div class="container">
 
   <!-- HERO -->
   <div class="hero">
-    <h1>🧠 AI Website Auditor</h1>
-    <p>SEO • UX • Conversion intelligence in seconds</p>
+    <h1>🧠 AI Website Intelligence</h1>
+    <p>SEO • UX • Conversion scoring powered by NorthSky OS</p>
   </div>
 
   <!-- INPUT -->
   <div class="card">
     <input id="site" placeholder="Enter website (example.com)" />
-    <input id="email" placeholder="Email (optional)" />
-    <button id="btn" onclick="analyzeSite()">Analyze Website</button>
+    <input id="email" placeholder="Email (optional for report)" />
+    <button id="btn" onclick="analyzeSite()">Run Audit</button>
+    <div class="status" id="status">Free tier: 3 audits</div>
   </div>
 
   <!-- OUTPUT -->
   <div id="output" class="card output">
-    Ready to analyze a website.
+    Ready to analyze.
   </div>
 
   <!-- METRICS -->
   <div id="metrics" class="grid" style="display:none;">
 
     <div class="metric">
-      <h3>SEO Score</h3>
+      <h3>SEO</h3>
       <div class="value" id="seo">--</div>
     </div>
 
     <div class="metric">
-      <h3>UX Score</h3>
+      <h3>UX</h3>
       <div class="value" id="ux">--</div>
     </div>
 
@@ -217,7 +239,7 @@ async function analyzeSite(){
   }
 
   if(state.uses >= state.limit){
-    output.innerText = "🚫 Free limit reached";
+    output.innerText = "🚫 Upgrade to Pro for unlimited audits";
     return;
   }
 
@@ -227,7 +249,7 @@ async function analyzeSite(){
   btn.disabled = true;
   btn.innerText = "Analyzing...";
 
-  output.innerHTML = "<span class='loading'>🧠 Running AI audit...</span>";
+  output.innerHTML = "<span class='loading'>🧠 Running NorthSky AI audit...</span>";
 
   try {
     const res = await fetch("/api/analyze", {
@@ -256,11 +278,11 @@ async function analyzeSite(){
     output.innerHTML = text;
 
   } catch(e){
-    output.innerText = "⚠️ Failed to analyze site";
+    output.innerText = "⚠️ Failed to run audit";
   }
 
   btn.disabled = false;
-  btn.innerText = "Analyze Website";
+  btn.innerText = "Run Audit";
 }
 
 function extract(text,label){
